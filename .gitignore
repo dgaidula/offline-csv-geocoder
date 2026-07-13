@@ -1,0 +1,18 @@
+# Downloaded GeoNames data (regenerable, ~12MB, CC-BY 4.0 — not ours to redistribute)
+/data/
+
+# Real/client input data and any generated geocoded output — NEVER commit to a public repo
+/test input/
+*_with_latlon.csv
+
+# Node
+node_modules/
+npm-debug.log*
+.npm/
+
+# Internal dev notes — references the client by name; keep local, don't publish
+/CLAUDE.md
+
+# Editor / OS
+.DS_Store
+*.swp
