@@ -29,12 +29,12 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 
 // Where the downloaded GeoNames data lives. Priority:
-//   1. $ADDLATLON_DATA_DIR (explicit override)
+//   1. $CSV_GEOCODER_DATA_DIR (explicit override)
 //   2. ./data next to the script, if it already exists or __dirname is writable
 //      (keeps local/dev checkouts self-contained)
 //   3. a per-user cache dir (for global npm installs where __dirname is read-only)
 function resolveDataDir() {
-  if (process.env.ADDLATLON_DATA_DIR) return process.env.ADDLATLON_DATA_DIR;
+  if (process.env.CSV_GEOCODER_DATA_DIR) return process.env.CSV_GEOCODER_DATA_DIR;
   const local = path.join(__dirname, 'data');
   if (fs.existsSync(local)) return local;
   try {
@@ -42,7 +42,7 @@ function resolveDataDir() {
     return local;
   } catch {
     const base = process.env.XDG_CACHE_HOME || path.join(os.homedir(), '.cache');
-    return path.join(base, 'addlatloncsv');
+    return path.join(base, 'csv-geocoder');
   }
 }
 const DATA_DIR = resolveDataDir();

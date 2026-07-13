@@ -116,8 +116,8 @@ downloads ~12MB (`cities500`, `admin1CodesASCII`, `countryInfo`, and the
 fully offline.
 
 Downloaded data is cached in `./data` for a local checkout, or in
-`$XDG_CACHE_HOME/addlatloncsv` (default `~/.cache/addlatloncsv`) for a global
-install. Override with `$ADDLATLON_DATA_DIR`. Delete the cache to force a
+`$XDG_CACHE_HOME/csv-geocoder` (default `~/.cache/csv-geocoder`) for a global
+install. Override with `$CSV_GEOCODER_DATA_DIR`. Delete the cache to force a
 refresh.
 
 **If you publish maps or data derived from these coordinates, you must
