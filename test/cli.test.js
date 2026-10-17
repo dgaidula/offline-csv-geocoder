@@ -132,7 +132,6 @@ test('exit 2: usage errors, with a hint on stderr and nothing on stdout', async 
     'input path is a directory': ['adir'],
     '--country-col names no column': ['in.csv', '--country-col', 'Nation'],
     '--zip-col index out of range': ['in.csv', '--zip-col', '99'],
-    'no Country or Zip column': ['nocols.csv'],
   };
   for (const [label, args] of Object.entries(cases)) {
     await t.test(label, () => {
@@ -145,7 +144,7 @@ test('exit 2: usage errors, with a hint on stderr and nothing on stdout', async 
 });
 
 test('exit 3: could not complete, with a one-line error: on stderr', async (t) => {
-  const cwd = makeWorkDir({ 'in.csv': GOOD_CSV, 'empty.csv': '' });
+  const cwd = makeWorkDir({ 'in.csv': GOOD_CSV, 'empty.csv': '', 'nocols.csv': 'A,B\n1,2\n' });
   const expect3 = (r) => {
     assert.equal(r.code, 3, r.err);
     assert.match(r.err, /^error: .+\n$/);
@@ -165,6 +164,11 @@ test('exit 3: could not complete, with a one-line error: on stderr', async (t) =
   });
   await t.test('empty input CSV', () => {
     expect3(cli(['empty.csv', '-o', 'out.csv'], { cwd }));
+  });
+  await t.test('no Country or Zip column (a data problem, not usage)', () => {
+    const r = cli(['nocols.csv', '-o', 'out.csv'], { cwd });
+    expect3(r);
+    assert.match(r.err, /No "Country" or Zip\/Postal column found/);
   });
   await t.test('output cannot be written', () => {
     expect3(cli(['in.csv', '-o', path.join('no-such-dir', 'out.csv')], { cwd }));

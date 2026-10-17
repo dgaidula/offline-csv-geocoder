@@ -570,7 +570,7 @@ function processFile(idx, inputPath, outputPath, cols = {}) {
   // any column mentioning zip/postal, e.g. "Zip", "Updated Zip", "Postal Code"
   const zipCol = cols.zip ? resolveCol(header, cols.zip, inputPath) : header.findIndex(h => /\b(zip|postal)\b/i.test(h));
   if (countryCol === -1 && zipCol === -1) {
-    throw new UsageError(`No "Country" or Zip/Postal column found in ${inputPath} (use --country-col / --zip-col to specify)`);
+    throw new Error(`No "Country" or Zip/Postal column found in ${inputPath} (use --country-col / --zip-col to specify)`);
   }
 
   const out = [toCsvLine([...header, 'Lat', 'Lon'])];

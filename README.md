@@ -113,8 +113,8 @@ See [`aliases.example.json`](./aliases.example.json).
 |--:|---|
 | `0` | Ran to completion. Rows the geocoder couldn’t place are a normal outcome: they’re listed under “Unmatched” and the exit code stays `0`. `--help` also exits `0`. |
 | `1` | Partial: ran to completion, but some items failed. Reserved. The tool doesn’t currently emit it, because it stops at the first failure rather than skipping items. |
-| `2` | Usage: an unknown flag, a flag missing its value, an unreadable or invalid `--aliases` file, an input path or glob that matches nothing or isn’t a file, or a `--*-col` option (or missing Country/Zip column) that doesn’t fit the input. The message and a usage hint go to stderr. |
-| `3` | Could not complete: the GeoNames data is missing and can’t be downloaded, the data directory or an input/output file can’t be read or written, an input CSV is empty, or any other unexpected error. A one-line `error: …` goes to stderr. |
+| `2` | Usage: an unknown flag, a flag missing its value, an unreadable or invalid `--aliases` file, an input path or glob that matches nothing or isn’t a file, or a `--*-col` option that names a column the input doesn’t have. The message and a usage hint go to stderr. |
+| `3` | Could not complete: the GeoNames data is missing and can’t be downloaded, the data directory or an input/output file can’t be read or written, an input CSV is empty or has no Country or Zip/Postal column, or any other unexpected error. A one-line `error: …` goes to stderr. |
 
 Stdout on a successful run is the same as in 1.x. Output files written before a
 mid-run failure (for example, when the third of five inputs has no Country
