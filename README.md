@@ -1,4 +1,4 @@
-# csv-geocoder
+# offline-csv-geocoder
 
 **Offline** forward geocoder (no API key, no rate limits, **zero npm
 dependencies**) that appends `Lat` and `Lon` columns to a CSV using the `City`,
@@ -10,13 +10,13 @@ It fills a specific gap: the offline geocoders on npm are almost all *reverse*
 key. This does *forward*, offline, CSV-native geocoding with postal precision.
 
 ```sh
-npx csv-geocoder input.csv                        # writes input_with_latlon.csv
-npx csv-geocoder input.csv -o out.csv             # explicit output file
-npx csv-geocoder "data/*.csv" -o results/         # glob in, output directory
-npx csv-geocoder --help
+npx offline-csv-geocoder input.csv                        # writes input_with_latlon.csv
+npx offline-csv-geocoder input.csv -o out.csv             # explicit output file
+npx offline-csv-geocoder "data/*.csv" -o results/         # glob in, output directory
+npx offline-csv-geocoder --help
 ```
 
-Or install it: `npm i -g csv-geocoder`, then run `csv-geocoder ...`.
+Or install it: `npm i -g offline-csv-geocoder`, then run `offline-csv-geocoder ...`.
 
 ## What it's good for
 
@@ -87,8 +87,8 @@ By default: `City`/`State`/`Country` are matched by those header names
 "postal". If your headers differ, point at them explicitly:
 
 ```sh
-csv-geocoder --country-col Nation --city-col Municipality --zip-col "Post Code" input.csv
-csv-geocoder --country-col 2 --state-col 3 --city-col 4 --zip-col 5 input.csv   # by index
+offline-csv-geocoder --country-col Nation --city-col Municipality --zip-col "Post Code" input.csv
+offline-csv-geocoder --country-col 2 --state-col 3 --city-col 4 --zip-col 5 input.csv   # by index
 ```
 
 ### Custom country aliases
@@ -102,7 +102,7 @@ of the built-ins and overrides them:
 ```
 
 ```sh
-csv-geocoder --aliases aliases.example.json input.csv
+offline-csv-geocoder --aliases aliases.example.json input.csv
 ```
 
 See [`aliases.example.json`](./aliases.example.json).
@@ -116,8 +116,8 @@ downloads ~12MB (`cities500`, `admin1CodesASCII`, `countryInfo`, and the
 fully offline.
 
 Downloaded data is cached in `./data` for a local checkout, or in
-`$XDG_CACHE_HOME/csv-geocoder` (default `~/.cache/csv-geocoder`) for a global
-install. Override with `$CSV_GEOCODER_DATA_DIR`. Delete the cache to force a
+`$XDG_CACHE_HOME/offline-csv-geocoder` (default `~/.cache/offline-csv-geocoder`) for a global
+install. Override with `$OFFLINE_CSV_GEOCODER_DATA_DIR`. Delete the cache to force a
 refresh.
 
 **If you publish maps or data derived from these coordinates, you must

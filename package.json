@@ -1,5 +1,5 @@
 {
-  "name": "csv-geocoder",
+  "name": "offline-csv-geocoder",
   "version": "1.0.0",
   "description": "Offline, zero-dependency forward geocoder that appends Lat/Lon columns to CSVs by City/State/Country with US ZIP and Canadian postal-code precision. No API key.",
   "keywords": [
@@ -17,7 +17,7 @@
     "cli"
   ],
   "bin": {
-    "csv-geocoder": "index.js"
+    "offline-csv-geocoder": "index.js"
   },
   "main": "index.js",
   "type": "commonjs",
@@ -30,7 +30,7 @@
   ],
   "scripts": {
     "start": "node index.js",
-    "smoke": "node index.js examples/sample.csv -o /tmp/csv-geocoder-smoke.csv"
+    "smoke": "node index.js examples/sample.csv -o /tmp/offline-csv-geocoder-smoke.csv"
   },
   "engines": {
     "node": ">=18"
@@ -43,10 +43,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dgaidula/csv-geocoder.git"
+    "url": "git+https://github.com/dgaidula/offline-csv-geocoder.git"
   },
-  "homepage": "https://github.com/dgaidula/csv-geocoder#readme",
+  "homepage": "https://github.com/dgaidula/offline-csv-geocoder#readme",
   "bugs": {
-    "url": "https://github.com/dgaidula/csv-geocoder/issues"
+    "url": "https://github.com/dgaidula/offline-csv-geocoder/issues"
   }
 }
