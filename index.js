@@ -440,7 +440,7 @@ function parseArgs(argv) {
       if (!f) fail('--aliases requires a path to a JSON file');
       opts.aliases = loadAliases(f);
     } else if (a.startsWith('-')) {
-      fail(`Unknown option: ${a}  (try --help)`);
+      fail(`Unknown option: ${a}`);
     } else {
       opts.inputs.push(...expandGlob(a));
     }
@@ -461,9 +461,22 @@ function loadAliases(file) {
   return raw;
 }
 
+// Exit codes: 0 ok, 1 partial (not currently emitted: the tool stops at the first
+// failure), 2 usage (UsageError), 3 could not complete (anything else thrown).
+class UsageError extends Error {}
+
 function fail(msg) {
-  console.error(msg);
-  process.exit(1);
+  throw new UsageError(msg);
+}
+
+function die(err) {
+  if (err instanceof UsageError) {
+    console.error(err.message);
+    console.error('Try offline-csv-geocoder --help for usage.');
+    process.exit(2);
+  }
+  console.error(`error: ${String((err && err.message) || err).split('\n')[0]}`);
+  process.exit(3);
 }
 
 // Minimal glob: supports * and ? in the filename part (not in directories).
@@ -490,9 +503,10 @@ function defaultOutputPath(inputPath) {
 
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
-  if (!opts.inputs.length) fail('No input files matched.  (try --help)');
+  if (!opts.inputs.length) fail('No input files matched.');
   for (const f of opts.inputs) {
     if (!fs.existsSync(f)) fail(`Input file not found: ${f}`);
+    if (!fs.statSync(f).isFile()) fail(`Input path is not a file: ${f}`);
   }
 
   // map each input to its output path
@@ -534,12 +548,12 @@ async function main() {
 function resolveCol(header, spec, inputPath) {
   if (/^\d+$/.test(spec)) {
     const i = parseInt(spec, 10) - 1;
-    if (i < 0 || i >= header.length) throw new Error(`Column index ${spec} out of range in ${inputPath}`);
+    if (i < 0 || i >= header.length) throw new UsageError(`Column index ${spec} out of range in ${inputPath}`);
     return i;
   }
   const want = spec.trim().toLowerCase();
   const i = header.findIndex(h => h.trim().toLowerCase() === want);
-  if (i === -1) throw new Error(`Column "${spec}" not found in ${inputPath}`);
+  if (i === -1) throw new UsageError(`Column "${spec}" not found in ${inputPath}`);
   return i;
 }
 
@@ -556,7 +570,7 @@ function processFile(idx, inputPath, outputPath, cols = {}) {
   // any column mentioning zip/postal, e.g. "Zip", "Updated Zip", "Postal Code"
   const zipCol = cols.zip ? resolveCol(header, cols.zip, inputPath) : header.findIndex(h => /\b(zip|postal)\b/i.test(h));
   if (countryCol === -1 && zipCol === -1) {
-    throw new Error(`No "Country" or Zip/Postal column found in ${inputPath} (use --country-col / --zip-col to specify)`);
+    throw new UsageError(`No "Country" or Zip/Postal column found in ${inputPath} (use --country-col / --zip-col to specify)`);
   }
 
   const out = [toCsvLine([...header, 'Lat', 'Lon'])];
@@ -590,4 +604,5 @@ function processFile(idx, inputPath, outputPath, cols = {}) {
   }
 }
 
-main().catch(err => { console.error(err.message); process.exit(1); });
+process.on('uncaughtException', die);
+main().catch(die);

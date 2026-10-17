@@ -1,6 +1,6 @@
 {
   "name": "offline-csv-geocoder",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Offline, zero-dependency forward geocoder that appends Lat/Lon columns to CSVs by City/State/Country with US ZIP and Canadian postal-code precision. No API key.",
   "keywords": [
     "geocode",
@@ -30,6 +30,7 @@
   ],
   "scripts": {
     "start": "node index.js",
+    "test": "node --test",
     "smoke": "node index.js examples/sample.csv -o /tmp/offline-csv-geocoder-smoke.csv"
   },
   "engines": {
