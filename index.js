@@ -137,6 +137,7 @@ function normalize(s) {
 // (e.g. "United Sates") supply a JSON map via --aliases; see aliases.example.json.
 const COUNTRY_ALIASES = {
   'usa': 'US', 'us': 'US', 'united states of america': 'US',
+  'u s a': 'US', 'u s': 'US', 'united states america': 'US', 'america': 'US',
   'uk': 'GB', 'england': 'GB', 'scotland': 'GB', 'wales': 'GB',
   'great britain': 'GB', 'northern ireland': 'GB',
   'south korea': 'KR', 'north korea': 'KP', 'republic of korea': 'KR',
@@ -634,7 +635,9 @@ function processFile(idx, inputPath, outputPath, cols = {}) {
   console.log(`Geocoded ${matched}/${total} rows.${viaZip ? ` (${viaZip} via postal code)` : ''}`);
   if (cityMisses.length) {
     console.log(`Unmatched (${cityMisses.length}):`);
-    for (const m of [...new Set(cityMisses)].slice(0, 20)) console.log(`  - ${m}`);
+    const distinct = [...new Set(cityMisses)];
+    for (const m of distinct.slice(0, 20)) console.log(`  - ${m}`);
+    if (distinct.length > 20) console.log(`  ... and ${distinct.length - 20} more distinct rows`);
   }
 }
 

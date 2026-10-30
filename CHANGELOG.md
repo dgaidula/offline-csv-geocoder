@@ -21,6 +21,11 @@ Breaking changes from 1.0.0:
 
 Other changes:
 
+- `U.S.A.`, `U.S.`, `America` and `United States, America` are built-in
+  aliases for the United States (in 1.0.0 they were unrecognized, which the
+  ZIP path happened to hide).
+- The Unmatched list ends with `... and N more distinct rows` when more than
+  20 distinct rows are unmatched.
 - `require('offline-csv-geocoder')` no longer runs the CLI.
 - Tests for the README’s data-handling claims (BOM, re-run guard, ZIP
   re-padding, rural Canadian FSAs, province codes, output quoting).

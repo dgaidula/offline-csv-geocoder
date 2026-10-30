@@ -202,6 +202,43 @@ test('countries: an unrecognized non-blank country never takes a US ZIP; blank a
   assert.match(r.out, /Berlin, , Deutschland \[zip: 10115\]/);
 });
 
+test('countries: dotted and short US spellings (U.S.A., U.S., America) count as the US', () => {
+  const spellings = ['U.S.A.', 'U.S.', 'America', 'U. S. A.', 'United States, America'];
+  const lines = ['Name,Country,State,City,Postal Code'];
+  for (let i = 0; i < 300; i++) lines.push(`R${i},"${spellings[i % spellings.length]}",,,45202`);
+  const cwd = makeWorkDir({ 'in.csv': lines.join('\n') + '\n' });
+  const r = cli(['in.csv', '-o', 'out.csv'], { cwd });
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /Geocoded 300\/300 rows\. \(300 via postal code\)/);
+  assert.doesNotMatch(r.out, /Unmatched/);
+});
+
+test('countries: the US-misspelling rule allows two edits, not three', () => {
+  const cwd = makeWorkDir({ 'in.csv': 'Name,Country,City,Zip\nTwo,Unted Sttes,,45202\nThree,Unite Stat,,45202\n' });
+  const r = cli(['in.csv', '-o', 'out.csv'], { cwd });
+  assert.equal(r.code, 0, r.err);
+  assert.deepEqual(latlon(fs.readFileSync(path.join(cwd, 'out.csv'), 'utf8')), ['39.1,-84.5', ',']);
+});
+
+test('ZIP re-padding: a 4-digit code with a blank country is not re-padded', () => {
+  const cwd = makeWorkDir({ 'in.csv': 'Country,State,City,Zip\n,,,4029\n' });
+  const r = cli(['in.csv', '-o', 'out.csv'], { cwd, data: RICH });
+  assert.equal(r.code, 0, r.err);
+  assert.deepEqual(latlon(fs.readFileSync(path.join(cwd, 'out.csv'), 'utf8')), [',']);
+  assert.match(r.out, /Unmatched \(1\):/);
+});
+
+test('the Unmatched list is capped at 20 distinct rows, then a count of the rest', () => {
+  const lines = ['Country,City'];
+  for (let i = 0; i < 25; i++) lines.push(`Atlantis,Town${i}`, `Atlantis,Town${i}`);
+  const cwd = makeWorkDir({ 'in.csv': lines.join('\n') + '\n' });
+  const r = cli(['in.csv', '-o', 'out.csv'], { cwd });
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /Unmatched \(50\):/);
+  assert.equal(r.out.match(/^ {2}- /gm).length, 20);
+  assert.match(r.out, /\n {2}\.\.\. and 5 more distinct rows\n$/);
+});
+
 test('ZIP re-padding: an Excel-stripped US ZIP is re-padded when the country is the US; a ZIP hit wins over city+state', () => {
   const cwd = makeWorkDir({ 'in.csv': 'Country,State,City,Zip\nUnited States,,,4029\nUSA,,,4029-1234\nUnited States,OH,Cincinnati,45202\n' });
   const r = cli(['in.csv', '-o', 'out.csv'], { cwd, data: RICH });

@@ -42,7 +42,7 @@ mapping, regional aggregation, and radius queries down to a few miles — it is
 4. **Country fallback** — the capital's coordinates, else the most populous city.
 
 Rows that match nothing get empty Lat/Lon and are listed (deduped) in the console
-summary.
+summary: the first 20 distinct rows, then a `... and N more distinct rows` line.
 
 ### Which country a postal code belongs to
 
@@ -110,8 +110,8 @@ offline-csv-geocoder --country-col 2 --state-col 3 --city-col 4 --zip-col 5 inpu
 
 ### Custom country aliases
 
-The tool ships legitimate country-name variants (`USA`, `UK`, `Ivory Coast`,
-etc.). For *dataset-specific* misspellings, pass a JSON map — it's merged on top
+The tool ships legitimate country-name variants (`USA`, `U.S.A.`, `U.S.`,
+`America`, `UK`, `Ivory Coast`, etc.). For *dataset-specific* misspellings, pass a JSON map — it's merged on top
 of the built-ins and overrides them:
 
 ```json
