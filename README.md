@@ -44,6 +44,22 @@ mapping, regional aggregation, and radius queries down to a few miles — it is
 Rows that match nothing get empty Lat/Lon and are listed (deduped) in the console
 summary.
 
+### Which country a postal code belongs to
+
+The row’s Country cell decides which postal table is tried:
+
+- **A recognized country** (a GeoNames name or a built-in or `--aliases` alias)
+  scopes the lookup: US ZIPs for the United States, FSAs for Canada, and no
+  postal lookup for any other country (its rows use city and country).
+- **A blank country** lets the code’s format decide: a 5-digit or ZIP+4 value is
+  read as a US ZIP, an `A1A` value as a Canadian FSA.
+- **An unrecognized country that is a close misspelling of “United States”**
+  (at most two edits, such as “United Sates” or “Untied States”) is treated as
+  the US, and a Canadian-format code still finds its FSA, as for a blank country.
+- **Any other unrecognized country** (`Deutschland`, `España`) never uses the
+  postal code: the row is listed under “Unmatched”, where an `--aliases` entry
+  fixes it. A German `10115` or Spanish `28001` is never placed in the US.
+
 ### Real-world-data handling baked in
 
 - **US territories** (Puerto Rico, US Virgin Islands, Guam, American Samoa,
@@ -54,7 +70,8 @@ summary.
   city+province match is preferred and the FSA centroid is the fallback. This
   also corrects same-named towns across provinces (Lethbridge AB vs NL).
 - **Excel-stripped leading zeros** — a ZIP that arrived as `4029` is re-padded to
-  `04029`.
+  `04029` when the country is the United States (a bare 4-digit code with a
+  blank country could as well be Austrian or Swiss, so it is not re-padded).
 - **ZIP+4** (`37402-1234`) and spaced/truncated Canadian codes (`V9A 2R3`,
   `T0B 1G`) are tolerated.
 - **UTF-8 BOM** on the header row is stripped.
@@ -113,12 +130,59 @@ See [`aliases.example.json`](./aliases.example.json).
 |--:|---|
 | `0` | Ran to completion. Rows the geocoder couldn’t place are a normal outcome: they’re listed under “Unmatched” and the exit code stays `0`. `--help` also exits `0`. |
 | `1` | Partial: ran to completion, but some items failed. Reserved. The tool doesn’t currently emit it, because it stops at the first failure rather than skipping items. |
-| `2` | Usage: an unknown flag, a flag missing its value, an unreadable or invalid `--aliases` file, an input path or glob that matches nothing or isn’t a file, or a `--*-col` option that names a column the input doesn’t have. The message and a usage hint go to stderr. |
+| `2` | Usage: an unknown flag, a flag missing its value, an unreadable or invalid `--aliases` file, an input path or glob that matches nothing (even alongside other inputs) or isn’t a file, or a `--*-col` option that names a column the input doesn’t have. The message and a usage hint go to stderr. |
 | `3` | Could not complete: the GeoNames data is missing and can’t be downloaded, the data directory or an input/output file can’t be read or written, an input CSV is empty or has no Country or Zip/Postal column, or any other unexpected error. A one-line `error: …` goes to stderr. |
 
-Stdout on a successful run is the same as in 1.x. Output files written before a
-mid-run failure (for example, when the third of five inputs has no Country
-column) are left in place.
+Output files written before a mid-run failure (for example, when the third of
+five inputs has no Country column) are left in place.
+
+## Upgrading from 1.0.0
+
+See [CHANGELOG.md](./CHANGELOG.md) for the full list. What can break a script:
+
+- **Exit codes.** 1.0.0 exited `1` on every error. 2.0.0 exits `2` for usage
+  errors and `3` when it could not complete (see the table above).
+- **Error text.** Usage errors print the message, then
+  `Try offline-csv-geocoder --help for usage.` on its own line (1.0.0 appended
+  “(try --help)” to the message). Other errors print one `error: …` line.
+- **Stricter inputs.** A directory given as an input, or any input glob that
+  matches nothing (even alongside other inputs), is now a usage error (`2`).
+  An input with no Country or Zip/Postal column is exit `3`.
+- **Postal codes with an unrecognized country.** A row whose Country cell is
+  non-blank but unrecognized no longer takes a US ZIP (or a re-padded one) from
+  its postal code; it is listed under “Unmatched”. Blank countries and close
+  misspellings of “United States” behave as before.
+- `require('offline-csv-geocoder')` no longer runs the CLI (in 1.0.0 it exited
+  the host process).
+
+On a clean run, stdout and the output files are otherwise the same as in 1.0.0.
+
+## Known limits
+
+- **Country-fallback matches are counted as geocoded and not flagged.** A row
+  whose city isn’t found (`Springfeld`) lands on the country’s capital and
+  counts toward `Geocoded X/Y`; nothing marks it as country-level.
+- **The postal code beats city and state.** A re-padded or mistyped ZIP that
+  points at another state (`OH, Cincinnati, 4029` → Maine) wins; there is no
+  cross-check against the state.
+- **A stray `"` inside an unquoted field** starts a quoted field, which can
+  swallow the rest of the file into one cell. Quote such fields in the input.
+- **`--output` is a file for one input and a directory for several**, even when
+  a glob happens to match only one file, so `"data/*.csv" -o results/` fails if
+  the glob matches a single file.
+- **Inputs with the same basename overwrite each other** in an `--output`
+  directory (`d1/data.csv d2/data.csv -o outdir`).
+- **The tool’s own `*` glob matches dotfiles** such as `.DS_Store`; name the
+  extension (`"dir/*.csv"`).
+- **`--` and file names that start with `-` are not accepted** as inputs.
+- **`--aliases` values are not validated.** A lowercase code (`"us"`) or a
+  number never matches; those rows show up under “Unmatched”.
+- **Offline first run.** With no network and no cached data, the run exits `3`
+  with the bare fetch error; set `OFFLINE_CSV_GEOCODER_DATA_DIR` to a directory
+  that holds the data.
+- **The cache location** is `./data` inside the package whenever the package
+  directory is writable (which includes Homebrew, nvm and npx installs), so
+  those installs download the data again after a reinstall or upgrade.
 
 ## Data source & attribution
 
@@ -128,9 +192,10 @@ downloads ~12MB (`cities500`, `admin1CodesASCII`, `countryInfo`, and the
 `US`/`PR`/`VI`/`GU`/`AS`/`MP`/`CA` postal tables); after that everything runs
 fully offline.
 
-Downloaded data is cached in `./data` for a local checkout, or in
-`$XDG_CACHE_HOME/offline-csv-geocoder` (default `~/.cache/offline-csv-geocoder`) for a global
-install. Override with `$OFFLINE_CSV_GEOCODER_DATA_DIR`. Delete the cache to force a
+Downloaded data is cached in `./data` next to `index.js` when that directory
+already exists or is writable (a local checkout, and most user-level global
+installs), else in `$XDG_CACHE_HOME/offline-csv-geocoder` (default
+`~/.cache/offline-csv-geocoder`). Override with `$OFFLINE_CSV_GEOCODER_DATA_DIR`. Delete the cache to force a
 refresh.
 
 **If you publish maps or data derived from these coordinates, you must
@@ -142,4 +207,5 @@ Node 18+ (built-in `fetch`) and `unzip` on `PATH` (preinstalled on macOS/Linux).
 
 ## License
 
-Source code: [MIT](./LICENSE). GeoNames data: CC-BY 4.0 (see above).
+MIT © Danniel T. Gaidula (source code; see [LICENSE](./LICENSE)). GeoNames data:
+CC-BY 4.0 (see above).

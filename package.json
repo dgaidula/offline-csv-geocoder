@@ -26,6 +26,7 @@
     "aliases.example.json",
     "examples/sample.csv",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "scripts": {

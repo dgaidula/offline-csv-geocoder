@@ -289,9 +289,10 @@ function zipLookup(idx, zip, cc) {
   const z = String(zip).trim().toUpperCase();
 
   // US ZIP: 5 digits, allowing ZIP+4 and 3-4 digit values whose leading
-  // zeros were stripped by a spreadsheet
+  // zeros were stripped by a spreadsheet (re-padded only when the row's
+  // country is the US: a bare 4-digit code is as likely Austrian or Swiss)
   const us = z.match(/^(\d{3,5})(?:[- ]\d{4})?$/);
-  if (us && (!cc || cc === 'US')) {
+  if (us && (cc === 'US' || (!cc && us[1].length === 5))) {
     const hit = idx.zipUS.get(us[1].padStart(5, '0'));
     if (hit) return hit;
   }
@@ -307,10 +308,41 @@ function zipLookup(idx, zip, cc) {
   return null;
 }
 
-function lookup(idx, { city, state, country, zip }) {
-  const cc = idx.countryByName.get(normalize(country)) || null;
+// Optimal-string-alignment edit distance (a transposition counts as one edit).
+function editDistance(a, b) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+      }
+    }
+  }
+  return d[a.length][b.length];
+}
 
-  const zipHit = zipLookup(idx, zip, cc);
+// A close misspelling of a long US name ("United Sates", "Unites States").
+// Short forms like "USA" are left out: two edits from a 3-letter name is
+// another country.
+function looksLikeUS(countryN) {
+  return ['united states', 'united states of america'].some((u) => editDistance(countryN, u) <= 2);
+}
+
+function lookup(idx, { city, state, country, zip }) {
+  const countryN = normalize(country);
+  const cc = idx.countryByName.get(countryN) || null;
+
+  // Postal scope: the resolved country; with a blank country the code's
+  // format decides. A non-blank country we can't resolve is trusted as the
+  // US only when it is a close misspelling of a US name (and then, as for a
+  // blank country, a Canadian-format code still finds its FSA); otherwise
+  // the postal code is not used and the row ends up under Unmatched.
+  let zipHit = null;
+  if (cc || !countryN) zipHit = zipLookup(idx, zip, cc);
+  else if (looksLikeUS(countryN)) zipHit = zipLookup(idx, zip, 'US') || zipLookup(idx, zip, null);
   // Urban postal hits are neighborhood-precise and win outright. A rural
   // Canadian FSA centroid can sit far from the actual town, so for those we
   // prefer an exact city+province match and keep the FSA as the fallback.
@@ -442,7 +474,9 @@ function parseArgs(argv) {
     } else if (a.startsWith('-')) {
       fail(`Unknown option: ${a}`);
     } else {
-      opts.inputs.push(...expandGlob(a));
+      const matched = expandGlob(a);
+      if (!matched.length) fail(`No input files matched: ${a}`);
+      opts.inputs.push(...matched);
     }
   }
   return opts;
@@ -604,5 +638,8 @@ function processFile(idx, inputPath, outputPath, cols = {}) {
   }
 }
 
-process.on('uncaughtException', die);
-main().catch(die);
+// Run only as a CLI, so require() from another program can't exit its host.
+if (require.main === module) {
+  process.on('uncaughtException', die);
+  main().catch(die);
+}

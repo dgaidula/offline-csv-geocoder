@@ -143,6 +143,110 @@ test('exit 2: usage errors, with a hint on stderr and nothing on stdout', async 
   }
 });
 
+test('exit 2: a glob matching nothing alongside other inputs', () => {
+  const cwd = makeWorkDir({ 'in.csv': GOOD_CSV });
+  for (const args of [['in.csv', 'nomatch*.csv', '-o', 'out.csv'], ['in.csv', 'nodir/*.csv']]) {
+    const r = cli(args, { cwd });
+    assert.equal(r.code, 2, r.err);
+    assert.match(r.err, new RegExp(`No input files matched: ${args[1].replace(/[*.]/g, '\\$&')}`));
+    assert.doesNotMatch(r.out, /Wrote /);
+  }
+});
+
+test('require() does not run the CLI or exit the host process', () => {
+  const r = spawnSync(process.execPath, ['-e', `require(${JSON.stringify(INDEX)}); console.log('host alive')`], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout, 'host alive\n');
+});
+
+// A richer fixture for the README's real-world-data claims: a Maine ZIP
+// (leading zero), a rural Alberta FSA, and Lethbridge in two provinces.
+function makeRichDataDir() {
+  const dir = makeDataDir();
+  const add = (name, lines) => fs.appendFileSync(path.join(dir, name), lines.join('\n') + '\n');
+  add('admin1CodesASCII.txt', ['CA.01\tAlberta\tAlberta\t4', 'CA.05\tNewfoundland and Labrador\tNewfoundland and Labrador\t5']);
+  const city = (name, lat, lon, cc, a1, pop) => row(15, { 1: name, 2: name, 4: lat, 5: lon, 8: cc, 10: a1, 14: pop });
+  add('cities500.txt', [
+    city('Lethbridge', '49.69999', '-112.81856', 'CA', '01', 90000),
+    city('Lethbridge', '48.35000', '-53.88000', 'CA', '05', 500),
+  ]);
+  const zip = (cc, code, lat, lon) => row(12, { 0: cc, 1: code, 9: lat, 10: lon });
+  add('zip_US.txt', [zip('US', '04029', '43.9', '-70.7')]);
+  add('zip_CA.txt', [zip('CA', 'T0B', '52.0', '-112.0')]);
+  return dir;
+}
+const RICH = makeRichDataDir();
+const latlon = (csvText) => csvText.trim().split('\n').slice(1).map((l) => l.split(',').slice(-2).join(','));
+
+test('countries: an unrecognized non-blank country never takes a US ZIP; blank and US typos still do', () => {
+  const cwd = makeWorkDir({
+    'in.csv': [
+      'Name,Country,State,City,Postal Code',
+      'Berlin,Deutschland,,Berlin,10115',
+      'Madrid,España,,Madrid,45202',
+      'Wien,,,Wien,1010',
+      'Blank,,,,45202',
+      'Typo,United Sates,,,45202',
+      'Typo2,Untied States,,,45202',
+      'TypoCA,United Sates,ON,Ottawa,K1A 0B1',
+      '',
+    ].join('\n'),
+  });
+  const r = cli(['in.csv', '-o', 'out.csv'], { cwd });
+  assert.equal(r.code, 0, r.err);
+  assert.deepEqual(latlon(fs.readFileSync(path.join(cwd, 'out.csv'), 'utf8')), [
+    ',', ',', ',', '39.1,-84.5', '39.1,-84.5', '39.1,-84.5', '45.4,-75.7',
+  ]);
+  assert.match(r.out, /Geocoded 4\/7 rows\. \(4 via postal code\)/);
+  assert.match(r.out, /Unmatched \(3\):/);
+  assert.match(r.out, /Berlin, , Deutschland \[zip: 10115\]/);
+});
+
+test('ZIP re-padding: an Excel-stripped US ZIP is re-padded when the country is the US; a ZIP hit wins over city+state', () => {
+  const cwd = makeWorkDir({ 'in.csv': 'Country,State,City,Zip\nUnited States,,,4029\nUSA,,,4029-1234\nUnited States,OH,Cincinnati,45202\n' });
+  const r = cli(['in.csv', '-o', 'out.csv'], { cwd, data: RICH });
+  assert.equal(r.code, 0, r.err);
+  assert.deepEqual(latlon(fs.readFileSync(path.join(cwd, 'out.csv'), 'utf8')), ['43.9,-70.7', '43.9,-70.7', '39.1,-84.5']);
+});
+
+test('rural Canadian FSA: city+province outranks it; it beats a bare city+country match', () => {
+  const cwd = makeWorkDir({ 'in.csv': 'Country,State,City,Postal Code\nCanada,AB,Lethbridge,T0B 1G\nCanada,,Lethbridge,T0B 1G\n' });
+  const r = cli(['in.csv', '-o', 'out.csv'], { cwd, data: RICH });
+  assert.equal(r.code, 0, r.err);
+  assert.deepEqual(latlon(fs.readFileSync(path.join(cwd, 'out.csv'), 'utf8')), ['49.69999,-112.81856', '52.0,-112.0']);
+});
+
+test('Canadian province abbreviations resolve (NL picks the Newfoundland Lethbridge)', () => {
+  const cwd = makeWorkDir({ 'in.csv': 'Country,State,City\nCanada,NL,Lethbridge\nCanada,AB,Lethbridge\n' });
+  const r = cli(['in.csv', '-o', 'out.csv'], { cwd, data: RICH });
+  assert.equal(r.code, 0, r.err);
+  assert.deepEqual(latlon(fs.readFileSync(path.join(cwd, 'out.csv'), 'utf8')), ['48.35000,-53.88000', '49.69999,-112.81856']);
+});
+
+test('a UTF-8 BOM on the input is stripped, not copied into the output header', () => {
+  const cwd = makeWorkDir({ 'in.csv': String.fromCharCode(0xfeff) + 'Country,City\nUnited States,Cincinnati\n' });
+  const r = cli(['in.csv', '-o', 'out.csv'], { cwd });
+  assert.equal(r.code, 0, r.err);
+  assert.equal(fs.readFileSync(path.join(cwd, 'out.csv'), 'utf8'), 'Country,City,Lat,Lon\nUnited States,Cincinnati,39.12714,-84.51435\n');
+});
+
+test('re-run guard: a glob never re-matches *_with_latlon.csv output', () => {
+  const cwd = makeWorkDir({ 'in.csv': GOOD_CSV });
+  assert.equal(cli(['*.csv'], { cwd }).code, 0);
+  const r = cli(['*.csv'], { cwd });
+  assert.equal(r.code, 0, r.err);
+  assert.equal(r.out.match(/Wrote /g).length, 1);
+  assert.deepEqual(fs.readdirSync(cwd).sort(), ['in.csv', 'in_with_latlon.csv']);
+});
+
+test('output quoting: commas, quotes and newlines in a field are re-quoted', () => {
+  const cwd = makeWorkDir({ 'in.csv': 'Name,Country,City\n"Acme, ""Inc""\nSuite 2",United States,Cincinnati\n' });
+  const r = cli(['in.csv', '-o', 'out.csv'], { cwd });
+  assert.equal(r.code, 0, r.err);
+  assert.equal(fs.readFileSync(path.join(cwd, 'out.csv'), 'utf8'),
+    'Name,Country,City,Lat,Lon\n"Acme, ""Inc""\nSuite 2",United States,Cincinnati,39.12714,-84.51435\n');
+});
+
 test('exit 3: could not complete, with a one-line error: on stderr', async (t) => {
   const cwd = makeWorkDir({ 'in.csv': GOOD_CSV, 'empty.csv': '', 'nocols.csv': 'A,B\n1,2\n' });
   const expect3 = (r) => {
