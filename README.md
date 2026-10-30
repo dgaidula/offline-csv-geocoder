@@ -18,6 +18,8 @@ npx offline-csv-geocoder --help
 
 Or install it: `npm i -g offline-csv-geocoder`, then run `offline-csv-geocoder ...`.
 
+**Hardened:** 2026-10-30 · dfb042b · gate CLOSED WITH FOLLOW-UPS
+
 ## What it's good for
 
 Batch-geocoding spreadsheets of organizations, grant recipients, mailing lists,
