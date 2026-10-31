@@ -637,7 +637,8 @@ function processFile(idx, inputPath, outputPath, cols = {}) {
     console.log(`Unmatched (${cityMisses.length}):`);
     const distinct = [...new Set(cityMisses)];
     for (const m of distinct.slice(0, 20)) console.log(`  - ${m}`);
-    if (distinct.length > 20) console.log(`  ... and ${distinct.length - 20} more distinct rows`);
+    const more = distinct.length - 20;
+    if (more > 0) console.log(`  ... and ${more} more distinct ${more === 1 ? 'row' : 'rows'}`);
   }
 }
 

@@ -78,6 +78,16 @@ test('exit 0: clean run, with an ordinary geocode miss reported as a normal outc
   assert.match(fs.readFileSync(path.join(cwd, 'out.csv'), 'utf8'), /^Name,Country,State,City,Zip,Lat,Lon\n/);
 });
 
+test('unmatched list: 20 distinct rows print no count line; 21 print "1 more distinct row"', () => {
+  const csv = (n) => ['Name,Country,State,City,Zip', ...Array.from({ length: n }, (_, i) => `X,Atlantis,,Town${i + 1},`), ''].join('\n');
+  const r20 = cli(['in.csv', '-o', 'out.csv'], { cwd: makeWorkDir({ 'in.csv': csv(20) }) });
+  assert.equal(r20.code, 0, r20.err);
+  assert.doesNotMatch(r20.out, /\.\.\. and/);
+  const r21 = cli(['in.csv', '-o', 'out.csv'], { cwd: makeWorkDir({ 'in.csv': csv(21) }) });
+  assert.equal(r21.code, 0, r21.err);
+  assert.match(r21.out, /\.\.\. and 1 more distinct row$/m);
+});
+
 test('exit 0: --help, and --no-overwrite with nothing left to do', () => {
   const cwd = makeWorkDir({ 'in.csv': GOOD_CSV, 'out.csv': 'x' });
   assert.equal(cli(['--help'], { cwd }).code, 0);
