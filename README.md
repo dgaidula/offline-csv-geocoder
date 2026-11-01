@@ -207,6 +207,17 @@ attribute GeoNames** (per CC-BY 4.0).
 
 Node 18+ (built-in `fetch`) and `unzip` on `PATH` (preinstalled on macOS/Linux).
 
+## Releasing
+
+Bump `version` in `package.json`, add its entry to `CHANGELOG.md`, commit, then tag and push:
+
+```sh
+git tag -a v<version> -m "v<version>"
+git push --follow-tags
+```
+
+(`--follow-tags` pushes only annotated tags, so the tag needs `-a`.) The tag starts the `publish` workflow (`.github/workflows/publish.yml`), which runs the tests and publishes to npm with provenance, with no token involved. It works once the package is linked to this repository under Trusted publisher on npmjs.com, and it stops if the tag does not match the version in `package.json`.
+
 ## License
 
 MIT © Danniel T. Gaidula (source code; see [LICENSE](./LICENSE)). GeoNames data:
